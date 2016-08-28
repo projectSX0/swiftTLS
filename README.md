@@ -1,2 +1,3 @@
 # swiftTLS
-swift wrapper of libtls
+
+build: swift build -Xlinker /path/to/libressl/lib -Xcc -I/path/to/libressl/include
