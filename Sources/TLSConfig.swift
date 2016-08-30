@@ -12,11 +12,48 @@ import CKit
 
 public typealias tls_config_t = OpaquePointer
 
+
 public struct TLSConfig: OpaqueBridged {
     
     public var opaqueObj: OpaqueObject
     
-    public init() {
+    internal init() {
+        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+    }
+    
+    public init(ca: String, ca_passwd: String?, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
+        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+        try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
+        try load(file: ca, passwd: ca_passwd, to: tls_config_set_ca_mem)
+        try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
+    }
+    
+    public init(ca_path: String, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
+        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+        try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
+        try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
+        let c = ca_path.withCString{UnsafeMutablePointer<Int8>(mutating: $0)}
+        if tls_config_set_ca_path(self.rawValue, c) < 0  {
+            throw TLSError.unableToLoadFile(ca_path)
+        }
+    }
+    
+    private func load(file: String, passwd: String?, to fn: (OpaquePointer, UnsafePointer<UInt8>, size_t) -> Int32) throws
+    {
+        var s_ptr: UnsafeMutablePointer<size_t>!
+        let pwd: UnsafeMutablePointer<Int8>? = passwd?.withCString {
+                UnsafeMutablePointer(mutating: $0)
+            }
+        guard let addr = tls_load_file(file, s_ptr, pwd) else {
+            throw TLSError.unableToLoadFile(file)
+        }
+        
+        if fn(self.rawValue, addr, s_ptr.pointee) < 0 {
+            throw TLSError.unableToLoadFile(file)
+        }
+    }
+    
+    public init(cert: String, cert_passwd: String?, key: String, key_passwd: String?) {
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
     }
     
@@ -27,46 +64,6 @@ public struct TLSConfig: OpaqueBridged {
     public var protocols: TLSProtocols = TLSProtocols.default {
         didSet {
             tls_config_set_protocols(rawValue, UInt32(protocols.rawValue))
-        }
-    }
-    
-    public var keyFile: String? {
-        didSet {
-            if let file = keyFile {
-                tls_config_set_key_file(rawValue, file)
-            }
-        }
-    }
-  
-    public var keyMemLoca: ConvenientPointer<UInt8>? {
-        didSet {
-            if let memloca = keyMemLoca {
-                tls_config_set_key_mem(rawValue, memloca.pointer, memloca.size)
-            }
-        }
-    }
-    
-    public var certificateFile: String? {
-        didSet {
-            if let file = certificateFile {
-                tls_config_set_ca_file(rawValue, file)
-            }
-        }
-    }
-    
-    public var certificateSearchPath: String? {
-        didSet {
-            if let path = certificateSearchPath {
-                tls_config_set_ca_path(rawValue, path)
-            }
-        }
-    }
-    
-    public var certificateMemLoca: ConvenientPointer<UInt8>? {
-        didSet {
-            if let memloca = certificateMemLoca {
-                tls_config_set_ca_mem(rawValue, memloca.pointer, memloca.size)
-            }
         }
     }
 }

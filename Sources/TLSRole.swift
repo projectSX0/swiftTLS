@@ -19,7 +19,7 @@ extension TLSRole {
     @inline(__always)
     internal func err(_ fn: @autoclosure ()->Int32) throws {
         if fn() < 0 {
-            throw SSLError.tlserror(TLSManager.error(of: self))
+            throw TLSError.tlserror(TLSManager.error(of: self))
         }
     }
     
@@ -33,14 +33,14 @@ extension TLSRole {
         var buffer = [UInt8](repeating: 0, count: size)
         let count = tls_read(rawValue, &buffer, size)
         
-        guard size > 0 else { throw SSLError.invalidSize }
+        guard size > 0 else { throw TLSError.invalidSize }
         
         switch Int32(count) {
-        case TLS_WANT_POLLIN: throw SSLError.filedescriptorNotReadable
-        case TLS_WANT_POLLOUT: throw SSLError.filedescriptorNotWriteable
+        case TLS_WANT_POLLIN: throw TLSError.filedescriptorNotReadable
+        case TLS_WANT_POLLOUT: throw TLSError.filedescriptorNotWriteable
         default:
             if count < 0 {
-                throw SSLError.tlserror(TLSManager.error(of: self))
+                throw TLSError.tlserror(TLSManager.error(of: self))
             }
         }
         return Data(bytes: buffer, count: count)
@@ -57,17 +57,17 @@ extension TLSRole {
         var count = -1
         var size = 0
         
-        guard blocksize > 0 else { throw SSLError.invalidSize }
+        guard blocksize > 0 else { throw TLSError.invalidSize }
         
         repeat {
             var buffer = [UInt8](repeating: 0, count: blocksize)
             count = tls_read(rawValue, &buffer, blocksize)
             switch Int32(count) {
-            case TLS_WANT_POLLIN: throw SSLError.filedescriptorNotReadable
-            case TLS_WANT_POLLOUT: throw SSLError.filedescriptorNotWriteable
+            case TLS_WANT_POLLIN: throw TLSError.filedescriptorNotReadable
+            case TLS_WANT_POLLOUT: throw TLSError.filedescriptorNotWriteable
             default:
                 if count < 0 {
-                    throw SSLError.tlserror(TLSManager.error(of: self))
+                    throw TLSError.tlserror(TLSManager.error(of: self))
                 }
             }
             size += count
@@ -86,11 +86,11 @@ extension TLSRole {
         
         let ret = tls_write(rawValue, (data as NSData).bytes, data.count)
         switch Int32(ret) {
-        case TLS_WANT_POLLIN: throw SSLError.filedescriptorNotReadable
-        case TLS_WANT_POLLOUT: throw SSLError.filedescriptorNotWriteable
+        case TLS_WANT_POLLIN: throw TLSError.filedescriptorNotReadable
+        case TLS_WANT_POLLOUT: throw TLSError.filedescriptorNotWriteable
         default:
             if ret < 0 {
-                throw SSLError.tlserror(TLSManager.error(of: self))
+                throw TLSError.tlserror(TLSManager.error(of: self))
             }
             return ret
         }
@@ -99,7 +99,7 @@ extension TLSRole {
     /// Performs the TLS handshake. It is only necessay to call this function if you need to guarantee that the handshake has completed, as both `read` and `write` will perform the TLS handshake if necessary.
     public func handshake() throws {
         if tls_handshake(rawValue) < 0 {
-            throw SSLError.tlserror(TLSManager.error(of: self))
+            throw TLSError.tlserror(TLSManager.error(of: self))
         }
     }
     
