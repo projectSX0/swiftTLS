@@ -21,7 +21,24 @@ public struct TLSConfig: OpaqueBridged {
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
     }
     
+    public init(cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
+        
+        if TLSManager.default == nil {
+            TLSManager.default = TLSManager()
+        }
+        
+        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+        try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
+        try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
+    }
+    
+    
     public init(ca: String, ca_passwd: String?, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
+        
+        if TLSManager.default == nil {
+            TLSManager.default = TLSManager()
+        }
+        
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
         try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
         try load(file: ca, passwd: ca_passwd, to: tls_config_set_ca_mem)
@@ -30,6 +47,11 @@ public struct TLSConfig: OpaqueBridged {
     
     public init(ca_path: String, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+        
+        if TLSManager.default == nil {
+            TLSManager.default = TLSManager()
+        }
+        
         try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
         try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
         let c = ca_path.withCString{UnsafeMutablePointer<Int8>(mutating: $0)}
@@ -40,22 +62,24 @@ public struct TLSConfig: OpaqueBridged {
     
     private func load(file: String, passwd: String?, to fn: (OpaquePointer, UnsafePointer<UInt8>, size_t) -> Int32) throws
     {
-        var s_ptr: UnsafeMutablePointer<size_t>!
+        var s = 0
+//        var s_ptr: UnsafeMutablePointer<size_t>!
         let pwd: UnsafeMutablePointer<Int8>? = passwd?.withCString {
                 UnsafeMutablePointer(mutating: $0)
             }
-        guard let addr = tls_load_file(file, s_ptr, pwd) else {
+        
+        guard let addr = tls_load_file(file, &s, pwd) else {
             throw TLSError.unableToLoadFile(file)
         }
         
-        if fn(self.rawValue, addr, s_ptr.pointee) < 0 {
+        if fn(self.rawValue, addr, s) < 0 {
             throw TLSError.unableToLoadFile(file)
         }
     }
     
-    public init(cert: String, cert_passwd: String?, key: String, key_passwd: String?) {
-        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
-    }
+//    public init(cert: String, cert_passwd: String?, key: String, key_passwd: String?) {
+//        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+//    }
     
     public init?(rawValue: OpaquePointer) {
         opaqueObj = OpaqueObject(rawValue, free: tls_config_free)

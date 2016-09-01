@@ -27,6 +27,15 @@ public extension TLSServer {
         try err(tls_configure(rawValue, config.rawValue))
     }
     
+    public init(cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
+        opaqueObj = OpaqueObject(tls_server(), free: tls_free)
+        self.config = try TLSConfig(cert: cert,
+                                    cert_passwd: cert_passwd,
+                                    key: key,
+                                    key_passwd: key_passwd)
+        try err(tls_configure(rawValue, config.rawValue))
+    }
+    
     public init(ca: String, ca_passwd: String?, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
         opaqueObj = OpaqueObject(tls_server(), free: tls_free)
         self.config = try TLSConfig(ca: ca,

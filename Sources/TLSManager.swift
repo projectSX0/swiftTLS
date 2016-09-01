@@ -11,7 +11,7 @@ import libressl
 
 public struct TLSManager {
     
-    static var `default` = TLSManager()
+    static var `default`: TLSManager?
     
     /// return the error string of last error of `tls`
     ///
@@ -39,7 +39,7 @@ public struct TLSManager {
         return String(cString: tls_error(tls.rawValue))
     }
     
-    private init() {
+    internal init() {
         _ = tls_init()
     }
 }
