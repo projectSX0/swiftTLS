@@ -26,6 +26,10 @@ public extension TLSClient {
         self.config = config
         try err(tls_configure(rawValue, config.rawValue))
     }
+    
+    public static func insecureClient() -> TLSClient {
+        return try! TLSClient(with: TLSConfig.insecureClientConf())
+    }
 }
 
 public extension TLSClient {

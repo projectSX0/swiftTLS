@@ -21,6 +21,17 @@ public struct TLSConfig: OpaqueBridged {
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
     }
     
+    public static func insecureClientConf() -> TLSConfig {
+        if TLSManager.default == nil {
+            TLSManager.default = TLSManager()
+        }
+        
+        var config = TLSConfig()
+        tls_config_insecure_noverifycert(config.rawValue)
+        tls_config_insecure_noverifyname(config.rawValue)
+        return config
+    }
+    
     public init(cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
         
         if TLSManager.default == nil {
@@ -63,10 +74,10 @@ public struct TLSConfig: OpaqueBridged {
     private func load(file: String, passwd: String?, to fn: (OpaquePointer, UnsafePointer<UInt8>, size_t) -> Int32) throws
     {
         var s = 0
-//        var s_ptr: UnsafeMutablePointer<size_t>!
+        //        var s_ptr: UnsafeMutablePointer<size_t>!
         let pwd: UnsafeMutablePointer<Int8>? = passwd?.withCString {
-                UnsafeMutablePointer(mutating: $0)
-            }
+            UnsafeMutablePointer(mutating: $0)
+        }
         
         guard let addr = tls_load_file(file, &s, pwd) else {
             throw TLSError.unableToLoadFile(file)
@@ -77,9 +88,9 @@ public struct TLSConfig: OpaqueBridged {
         }
     }
     
-//    public init(cert: String, cert_passwd: String?, key: String, key_passwd: String?) {
-//        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
-//    }
+    //    public init(cert: String, cert_passwd: String?, key: String, key_passwd: String?) {
+    //        opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+    //    }
     
     public init?(rawValue: OpaquePointer) {
         opaqueObj = OpaqueObject(rawValue, free: tls_config_free)
