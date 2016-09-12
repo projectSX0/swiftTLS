@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FoundationPlus
 import libressl
 import CKit
 
@@ -84,7 +85,7 @@ extension TLSRole {
     /// - returns: number of bytes written
     public func write(data: Data) throws -> Int {
         
-        let ret = tls_write(rawValue, (data as NSData).bytes, data.count)
+        let ret = tls_write(rawValue, data.bytes, data.count)
         switch Int32(ret) {
         case TLS_WANT_POLLIN: throw TLSError.filedescriptorNotReadable
         case TLS_WANT_POLLOUT: throw TLSError.filedescriptorNotWriteable
