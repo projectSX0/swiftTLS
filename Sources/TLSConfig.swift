@@ -55,6 +55,11 @@ public struct TLSConfig: OpaqueBridged {
         }
         
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
+        
+        var ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384"
+        self.protocols = .secure
+        tls_config_set_ciphers(self.rawValue, ciphers)
+        
         try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
         try load(file: ca, passwd: ca_passwd, to: tls_config_set_ca_mem)
         try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
@@ -66,6 +71,9 @@ public struct TLSConfig: OpaqueBridged {
         if TLSManager.default == nil {
             TLSManager.default = TLSManager()
         }
+        var ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384"
+        self.protocols = .secure
+        tls_config_set_ciphers(self.rawValue, ciphers)
         
         try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
         try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
