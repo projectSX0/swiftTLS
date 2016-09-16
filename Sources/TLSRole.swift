@@ -8,7 +8,11 @@
 
 import Foundation
 import FoundationPlus
+#if SecureTransport
+import SecurityInterface
+#else
 import libressl
+#endif
 import CKit
 
 internal protocol TLSRole: OpaqueBridged {
@@ -20,10 +24,34 @@ extension TLSRole {
     @inline(__always)
     internal func err(_ fn: @autoclosure ()->Int32) throws {
         if fn() < 0 {
+            SSLSet
             throw TLSError.tlserror(TLSManager.error(of: self))
         }
     }
     
+    #if SecureTransport
+    public func read(connection: SSLConnectionRef, bytes: UnsafeMutableRawPointer, len: UnsafeMutablePointer<Int>) -> OSStatus {
+        let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
+        return OSStatus(Darwin.read(sockfd, bytes, len.pointee))
+    }
+    
+    public func write(connection: SSLConnectionRef, bytes: UnsafeMutableRawPointer, len: UnsafeMutablePointer<Int>) -> OSStatus {
+        let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
+        return OSStatus(Darwin.write(sockfd, bytes, len.pointee))
+    }
+    
+    public func handshake() throws {
+        if SSLHandshake(self.context) < 0 {
+        
+        }
+    }
+    
+    
+    /// Close a connection after use. Only the TLS layerll be shut down and the caller is responsible for closing the file descriptors, unless the connection was established using the `connect` or `connect(with:)` method of a `TLSClient`
+    public func close() {
+        SSLClose(self.context)
+    }
+    #else
     /// Allocate a buffer with size `size` and read data from the socket to the buffer.
     ///
     /// - parameter size: Number of bytes to read. This will decide the size of memory buffer
@@ -109,4 +137,5 @@ extension TLSRole {
     public func close() {
         tls_close(rawValue)
     }
+    #endif
 }
