@@ -24,7 +24,6 @@ extension TLSRole {
     @inline(__always)
     internal func err(_ fn: @autoclosure ()->Int32) throws {
         if fn() < 0 {
-            SSLSet
             throw TLSError.tlserror(TLSManager.error(of: self))
         }
     }
