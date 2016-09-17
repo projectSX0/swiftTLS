@@ -40,18 +40,6 @@ extension TLSRole {
     let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
     return OSStatus(Darwin.write(sockfd, bytes, len.pointee))
     }
-    
-    public func handshake() throws {
-    if SSLHandshake(self.context) < 0 {
-    
-    }
-    }
-    
-    
-    /// Close a connection after use. Only the TLS layerll be shut down and the caller is responsible for closing the file descriptors, unless the connection was established using the `connect` or `connect(with:)` method of a `TLSClient`
-    public func close() {
-    SSLClose(self.context)
-    }
     #else
     /// Allocate a buffer with size `size` and read data from the socket to the buffer.
     ///
@@ -59,71 +47,20 @@ extension TLSRole {
     ///
     /// - returns: Bytes read from socket
     public func read(size: Int) throws -> Data {
+        let size = 16 * 1024
+        var sb = [UInt8](repeating: 0, count: size)
+        let count = tls_read(self.rawValue, &sb, size)
         
-        guard size > 0 else {
-            throw TLSError.invalidSize
-        }
-        
-        var buffer = [UInt8]()
-        var len = 0
-        
-        recvloop: while(true) {
-            var sb = [UInt8](repeating: 0, count: size)
-            let count = tls_read(rawValue, &sb, size)
-            
-            switch Int32(count) {
-            case TLS_WANT_POLLIN:
-                break recvloop
-            case TLS_WANT_POLLOUT:
-                break recvloop
-            case -1: print(TLSError.tlserror(TLSManager.error(of: self)))
+        switch Int32(count) {
+        case -1:
             throw TLSError.tlserror(TLSManager.error(of: self))
-            default:
-                print(count)
-                if count < 0 {
-                    throw TLSError.tlserror(TLSManager.error(of: self))
-                } else {
-                    len += count
-                    buffer.append(contentsOf: sb)
-                    if count < size {
-                        break recvloop
-                    }
-                }
-            }
-            
+        case TLS_WANT_POLLIN:
+            throw TLSError.filedescriptorNotReadable
+        case TLS_WANT_POLLOUT:
+            throw TLSError.filedescriptorNotWriteable
+        default:
+            return Data(bytes: sb, count: count)
         }
-        return Data(bytes: buffer, count: len)
-    }
-    
-    /// Recursively read data from the socket until no more data availabe. A block with size `blocksize` will be allocate at each cycle
-    ///
-    /// - parameter blocksize: Number of bytes to read. This will decide the size of memory buffer
-    ///
-    /// - returns: Bytes read from socket
-    public func read(blocksize: Int) throws -> Data {
-        
-        var blocks = [[UInt8]]()
-        var count = -1
-        var size = 0
-        
-        guard blocksize > 0 else { throw TLSError.invalidSize }
-        
-        repeat {
-            var buffer = [UInt8](repeating: 0, count: blocksize)
-            count = tls_read(rawValue, &buffer, blocksize)
-            switch Int32(count) {
-            case TLS_WANT_POLLIN: throw TLSError.filedescriptorNotReadable
-            case TLS_WANT_POLLOUT: throw TLSError.filedescriptorNotWriteable
-            default:
-                if count < 0 {
-                    throw TLSError.tlserror(TLSManager.error(of: self))
-                }
-            }
-            size += count
-            blocks.append(buffer)
-        } while ( count == blocksize )
-        
-        return Data(bytes: blocks.flatMap{$0}, count: size)
     }
     
     /// Writes data to the socket
@@ -131,30 +68,40 @@ extension TLSRole {
     /// - parameter data: Data to write
     ///
     /// - returns: number of bytes written
-    /* supert temp code */
+    /* super temp code */
     public func write(data: Data) throws -> Int {
-        var len = 0
         var ret = 0
         
-        DispatchQueue.global().async {
-            repeat {
-                ret = tls_write(self.rawValue, data.bytes.advanced(by: len), data.count - len)
-                len += ret
-                
-                switch Int32(ret) {
-                case TLS_WANT_POLLIN:
-                    TLSError.filedescriptorNotReadable
-                case TLS_WANT_POLLOUT:
-                    TLSError.filedescriptorNotWriteable
-                default:
-                    if ret < 0 {
-                        TLSError.tlserror(TLSManager.error(of: self))
-                    }
+        let magicNumber = 16384
+        
+        let remains = data.length % magicNumber
+        let nchunk = (data.length / magicNumber) + (remains == 0 ? 0 : 1)
+        
+        
+        for nth_chunk in 0..<nchunk {
+            /* The logic can be confusing here:
+             * If nth_chunk == nchunk - 1 //last chunk
+             *       if remains is 0??
+             *           if the remainder is zero, means, the last call does not zeros bytes out
+             *               so there will be `magicNumber` bytes of data
+             *           otherwise, write the size of remainder
+             * else -> It is a whole chunk
+             *       size = magicNumber
+             */
+            ret = tls_write(self.rawValue, data.bytes.advanced(by: magicNumber * nth_chunk), nth_chunk == (nchunk - 1) ? remains == 0 ? magicNumber : remains : magicNumber)
+            switch Int32(ret) {
+            case TLS_WANT_POLLIN:
+                throw TLSError.filedescriptorNotReadable
+            case TLS_WANT_POLLOUT:
+                throw TLSError.filedescriptorNotWriteable
+            default:
+                if ret < 0 {
+                    throw TLSError.tlserror(TLSManager.error(of: self))
                 }
-                
-            } while data.length != len
+            }
         }
-        return ret
+        
+        return data.length
     }
     
     /// Performs the TLS handshake. It is only necessay to call this function if you need to guarantee that the handshake has completed, as both `read` and `write` will perform the TLS handshake if necessary.
