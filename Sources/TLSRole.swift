@@ -30,24 +30,28 @@ extension TLSRole {
         }
     }
     
+    /* reserved for furture use */
     #if SecureTransport
     public func read(connection: SSLConnectionRef, bytes: UnsafeMutableRawPointer, len: UnsafeMutablePointer<Int>) -> OSStatus {
-    let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
-    return OSStatus(Darwin.read(sockfd, bytes, len.pointee))
+        let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
+        return OSStatus(Darwin.read(sockfd, bytes, len.pointee))
     }
     
     public func write(connection: SSLConnectionRef, bytes: UnsafeMutableRawPointer, len: UnsafeMutablePointer<Int>) -> OSStatus {
-    let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
-    return OSStatus(Darwin.write(sockfd, bytes, len.pointee))
+        let sockfd = connection.assumingMemoryBound(to: Int32.self).pointee
+        return OSStatus(Darwin.write(sockfd, bytes, len.pointee))
     }
-    #else
+    #endif
+    
     /// Allocate a buffer with size `size` and read data from the socket to the buffer.
     ///
     /// - parameter size: Number of bytes to read. This will decide the size of memory buffer
     ///
+    /// - throws: wantPollin if further read is required. wantPollout if further write is required. Detail in [OpenBSD man page](http://man.openbsd.org/OpenBSD-current/man3/tls_init.3)
+    ///
     /// - returns: Bytes read from socket
     public func read(size: Int) throws -> Data {
-        let size = 16 * 1024
+        let size = 16384 /* internal buffer size of openssl / libressl */
         var sb = [UInt8](repeating: 0, count: size)
         let count = tls_read(self.rawValue, &sb, size)
         
@@ -55,9 +59,9 @@ extension TLSRole {
         case -1:
             throw TLSError.tlserror(TLSManager.error(of: self))
         case TLS_WANT_POLLIN:
-            throw TLSError.filedescriptorNotReadable
+            throw TLSError.wantPollin
         case TLS_WANT_POLLOUT:
-            throw TLSError.filedescriptorNotWriteable
+            throw TLSError.wantPollout
         default:
             return Data(bytes: sb, count: count)
         }
@@ -91,9 +95,9 @@ extension TLSRole {
             ret = tls_write(self.rawValue, data.bytes.advanced(by: magicNumber * nth_chunk), nth_chunk == (nchunk - 1) ? remains == 0 ? magicNumber : remains : magicNumber)
             switch Int32(ret) {
             case TLS_WANT_POLLIN:
-                throw TLSError.filedescriptorNotReadable
+                throw TLSError.wantPollin
             case TLS_WANT_POLLOUT:
-                throw TLSError.filedescriptorNotWriteable
+                throw TLSError.wantPollout
             default:
                 if ret < 0 {
                     throw TLSError.tlserror(TLSManager.error(of: self))
@@ -116,5 +120,4 @@ extension TLSRole {
     public func close() {
         tls_close(rawValue)
     }
-    #endif
 }

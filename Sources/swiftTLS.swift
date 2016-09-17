@@ -8,8 +8,8 @@ public enum TLSError : Error {
 
     case unableToLoadFile(String)
     
-    case filedescriptorNotReadable
-    case filedescriptorNotWriteable
+    case wantPollin
+    case wantPollout
     
     case tlserror(String)
     case invalidSize
