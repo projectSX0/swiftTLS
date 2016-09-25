@@ -18,11 +18,6 @@ public struct TLSConfig: OpaqueBridged {
     public var opaqueObj: OpaqueObject
     
     internal init() {
-        
-        if TLSManager.default == nil {
-            TLSManager.default = TLSManager()
-        }
-        
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
     }
     
@@ -100,11 +95,6 @@ public struct TLSConfig: OpaqueBridged {
         if fn(self.rawValue, addr, s) < 0 {
             throw TLSError.unableToLoadFile(file)
         }
-    }
-    
-    public func set(ciphers: [String]) {
-        var ciphers = ciphers.reduce("") { "\($0):\($1)"}
-        tls_config_set_ciphers(rawValue, ciphers)
     }
     
     public init?(rawValue: OpaquePointer) {

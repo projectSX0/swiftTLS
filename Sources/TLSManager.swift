@@ -23,6 +23,7 @@ public struct TLSManager {
         return error(of: tls)
     }
     
+    
     /// return the error string of last error of `tls`
     ///
     /// - parameter tls: The TLS context

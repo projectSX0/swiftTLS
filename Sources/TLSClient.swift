@@ -27,14 +27,12 @@ public extension TLSClient {
         try err(tls_configure(rawValue, config.rawValue))
     }
     
-    public init() {
-        opaqueObj = OpaqueObject(tls_client(), free: tls_free)
-        self.config = TLSConfig()
-        try! err(tls_configure(rawValue, config.rawValue))
-    }
-    
     public static func insecureClient() -> TLSClient {
         return try! TLSClient(with: TLSConfig.insecureClientConf())
+    }
+    
+    public static func securedClient() -> TLSClient {
+        return try! TLSClient(with: TLSConfig())
     }
 }
 
