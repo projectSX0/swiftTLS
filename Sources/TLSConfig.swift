@@ -66,7 +66,7 @@ public struct TLSConfig: OpaqueBridged {
         try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
     }
     
-    public init(ca_path: String, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
+    public init(ca_path: String?, cert: String, cert_passwd: String? , key: String, key_passwd: String?) throws {
         opaqueObj = OpaqueObject(tls_config_new(), free: tls_config_free)
         
         if TLSManager.default == nil {
@@ -77,9 +77,11 @@ public struct TLSConfig: OpaqueBridged {
         
         try load(file: cert, passwd: cert_passwd, to: tls_config_set_cert_mem)
         try load(file: key, passwd: key_passwd, to: tls_config_set_key_mem)
-        let c = ca_path.withCString{UnsafeMutablePointer<Int8>(mutating: $0)}
-        if tls_config_set_ca_path(self.rawValue, c) < 0  {
-            throw TLSError.unableToLoadFile(ca_path)
+        if let _ = ca_path {
+            let c = ca_path!.withCString{UnsafeMutablePointer<Int8>(mutating: $0)}
+            if tls_config_set_ca_path(self.rawValue, c) < 0  {
+                throw TLSError.unableToLoadFile(ca_path!)
+            }
         }
     }
     
